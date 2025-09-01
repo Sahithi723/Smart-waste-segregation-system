@@ -1,0 +1,78 @@
+#include <LiquidCrystal.h>
+#include <TinyGPS.h>
+#include <Servo.h>
+int buz=A4;
+const int rs = 8, en = 9, d4 = 10, d5 = 11, d6 = 12, d7 = 13;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+#define ir A1 // Object detection sensor pin
+#define ms A2 // Moisture sensor pin (for wet/dry detection)
+int md = A0; // Metal detection sensor pin
+Servo myservo; // Servo for waste segregation (wet/dry)
+Servo myservo1; // Servo for metal detection
+void setup() {
+ Serial.begin(9600);
+ lcd.begin(16, 2);
+ lcd.print("WELCOME");
+ delay(1500);
+ lcd.clear();
+ lcd.setCursor(0, 0);
+ lcd.print("DRY & WET WASTE");
+ lcd.setCursor(2, 1);
+ lcd.print("SEGREGATION");
+ delay(1500);
+ lcd.clear();
+ pinMode(buz,OUTPUT);
+ pinMode(ir, INPUT); // Object sensor
+ pinMode(ms, INPUT); // Moisture sensor
+ pinMode(md, INPUT); // Metal sensor
+ myservo.attach(6); // Servo for wet/dry waste
+ myservo1.attach(7); // Servo for metal detection
+ myservo.write(60); // Initial position for waste segregation
+ myservo1.write(95); // Initial position for metal detection
+}
+void loop() {
+ int md1 = analogRead(md); // Metal detection sensor value
+ int mval = analogRead(ms); // Moisture sensor value
+ int ob = digitalRead(ir); // Object detection value (0 when detected)
+ lcd.setCursor(9, 0);
+ lcd.print("M:");
+ lcd.setCursor(11, 0);
+ lcd.print(md1);
+ lcd.setCursor(0, 1);
+ lcd.print("OB:");
+ lcd.setCursor(3, 1);
+ lcd.print(ob);
+ lcd.setCursor(9, 1);
+ lcd.print("M:");
+ lcd.setCursor(11, 1);
+ lcd.print(mval);
+ delay(500);
+ if (ob == 0) { // If an object is detected
+ Serial.println("STATUS: OBJECT DETECTED");
+ // Check if metal is detected
+ if (md1 < 50) { 
+ Serial.println("STATUS: METAL DETECTED");
+ // Rotate the second servo (metal detection)
+ digitalWrite(buz,1);
+ myservo1.write(60); // Rotate to metal detection position
+ delay(2000);
+ myservo1.write(95);
+ digitalWrite(buz,0);// Reset to initial position
+ } 
+ // Check if wet or dry waste is detected
+ else {
+ if (mval > 500) { // Dry waste detected
+ Serial.println("STATUS: DRY WASTE");
+ myservo.write(10); // Rotate to dry waste position
+ delay(2000);
+ myservo.write(60); // Reset to initial position
+ } 
+ else if (mval > 100) { // Wet waste detected
+ Serial.println("STATUS: WET WASTE");
+ myservo.write(120); // Rotate to wet waste position
+ delay(2000);
+ myservo.write(60); // Reset to initial position
+ }
+ }
+ } else {
+ // If no object is detected, reset servos to their default positions
